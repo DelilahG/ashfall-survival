@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Ashfall: a top-down survival game where the enemies watch how you fight and adapt their tactics." />
+    <meta name="theme-color" content="#120f0b" />
+    <title>Ashfall · Survival with Adaptive Enemies</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script type="module" crossorigin src="./assets/index-cItJjNma.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-OvPWIHEd.css">
+  </head>
+  <body>
+    <canvas id="cv" aria-label="Game world"></canvas>
+
+    <div class="hud box" id="tl">
+      <div class="lbl"><span>Health</span><span id="hpv">100</span></div>
+      <div class="bar"><i id="hpb" class="hp"></i></div>
+      <div class="lbl"><span>Hunger</span><span id="fv">100</span></div>
+      <div class="bar"><i id="fb" class="food"></i></div>
+      <div class="inv">
+        <span title="Wood"><i data-lucide="tree-pine"></i><b id="iw">0</b></span>
+        <span title="Stone"><i data-lucide="mountain"></i><b id="is">0</b></span>
+        <span title="Food rations"><i data-lucide="drumstick"></i><b id="ifd">0</b></span>
+      </div>
+      <div class="lbl weapon"><span>Weapon</span><span id="spv">Club</span></div>
+    </div>
+
+    <div class="hud box" id="clock">
+      <div class="lbl center"><span><span id="todIcon"></span> Day <b id="day">1</b> · <span id="tod">dawn</span></span></div>
+      <div class="lbl center sub">
+        <span>Score <em id="score">0</em></span><span>Kills <em id="kills">0</em></span><span>Foes <em id="foes">0</em></span>
+      </div>
+    </div>
+
+    <div class="hud box" id="tr">
+      <h3>What the enemies know about you</h3>
+      <div id="prof"></div>
+      <h3 class="gap">How they have adapted</h3>
+      <div id="genes"></div>
+      <div id="log" aria-live="polite"></div>
+    </div>
+
+    <div class="hud box" id="bl">
+      <span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>LMB</kbd> strike</span><span><kbd>RMB</kbd> throw stone</span>
+      <span><kbd>E</kbd> gather / feed fire</span><span><kbd>Q</kbd> eat</span><span><kbd>P</kbd> pause</span><br />
+      <span><kbd>1</kbd> campfire · 5 wood</span><span><kbd>2</kbd> spear · 3 wood 2 stone</span><span><kbd>3</kbd> wall at cursor · 3 wood</span>
+    </div>
+
+    <div class="hud" id="ctl">
+      <button id="intelBtn" type="button" aria-label="Show enemy intel" title="Enemy intel"><i data-lucide="brain"></i></button>
+      <button id="soundBtn" type="button" aria-label="Toggle sound" title="Sound (M)"><i data-lucide="volume-2"></i></button>
+      <button id="pbtn" type="button" aria-label="Pause" title="Pause (P)"><i data-lucide="pause"></i></button>
+    </div>
+
+    <!-- touch controls -->
+    <div class="touch" id="touch" hidden>
+      <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+      <div class="tbtns">
+        <button data-act="attack" class="big" type="button" aria-label="Strike"><i data-lucide="swords"></i></button>
+        <button data-act="throw" type="button" aria-label="Throw stone"><i data-lucide="crosshair"></i></button>
+        <button data-act="harvest" type="button" aria-label="Gather"><i data-lucide="hand"></i></button>
+        <button data-act="eat" type="button" aria-label="Eat"><i data-lucide="drumstick"></i></button>
+        <button data-act="fire" type="button" aria-label="Build campfire"><i data-lucide="flame"></i></button>
+        <button data-act="spear" type="button" aria-label="Craft spear"><i data-lucide="sword"></i></button>
+        <button data-act="wall" type="button" aria-label="Build wall"><i data-lucide="brick-wall"></i></button>
+      </div>
+    </div>
+
+    <div class="ov" id="start">
+      <div class="m">
+        <h1>ASHFALL</h1>
+        <p>The world is endless, the nights are long, and whatever hunts you is <b>watching how you fight</b>.</p>
+        <table>
+          <tr><td>Survive</td><td>Keep fed with berries, stay near firelight at night, don't die.</td></tr>
+          <tr><td>Gather</td><td>Walk up to trees, rocks and bushes and press <b>E</b>.</td></tr>
+          <tr><td>Fight</td><td>Strike, throw stones, craft a spear, build walls.</td></tr>
+          <tr><td>Adapt</td><td>Kite them and they learn to flank. Camp by a fire and they siege it. Brawl and they armour up. Wall in and brutes come.</td></tr>
+        </table>
+        <p class="best" id="bestStart"></p>
+        <button class="go" id="go" type="button">BEGIN</button>
+      </div>
+    </div>
+
+    <div class="ov hide" id="paused">
+      <div class="m small">
+        <h1>PAUSED</h1>
+        <p id="pauseInfo"></p>
+        <div class="btnrow">
+          <button class="go" id="resume" type="button">RESUME</button>
+          <button class="go alt" id="restart" type="button">RESTART</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ov hide" id="over">
+      <div class="m">
+        <h1 class="dead">YOU FELL</h1>
+        <p id="osum"></p>
+        <table id="ostats"></table>
+        <p class="learn-h">What they learned about you:</p>
+        <div id="olearn"></div>
+        <button class="go" id="again" type="button">TRY AGAIN</button>
+      </div>
+    </div>
+
+    <div class="ov hide" id="err"><div class="m small"><h1>ERROR</h1><p id="errMsg"></p></div></div>
+
+  </body>
+</html>
