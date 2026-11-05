@@ -1,544 +1,109 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ashfall — Survival with Adaptive Enemies</title>
-<style>
-:root{--bg:#120f0b;--panel:#1d1812ee;--line:#4a3b28;--ink:#f1e6d0;--mut:#a39378;--acc:#e8a33d;--hp:#d9453b;--food:#8fbf4a;--wood:#b9824a;--stone:#9aa3ad;--cy:#6fd0c8}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:13px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;user-select:none}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
-.hud{position:fixed;pointer-events:none}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;box-shadow:0 4px 0 #0007}
-#tl{left:12px;top:12px;width:230px}
-.bar{height:10px;background:#0006;border:1px solid var(--line);border-radius:2px;margin:3px 0 8px;overflow:hidden}
-.bar i{display:block;height:100%;transition:width .15s}
-.lbl{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px}
-.inv{display:flex;gap:10px;margin-top:2px;font-size:14px}
-.inv b{font-weight:700}
-#tr{right:12px;top:12px;width:285px}
-#tr h3{margin:0 0 6px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cy)}
-.pr{display:grid;grid-template-columns:70px 1fr 34px;gap:6px;align-items:center;margin:2px 0;font-size:11px;color:var(--mut)}
-.pr .bar{margin:0;height:7px}
-.pr em{font-style:normal;text-align:right;color:var(--ink)}
-#log{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px;font-size:11px;color:var(--mut);min-height:62px}
-#log div{margin:2px 0}
-#log div:first-child{color:var(--acc)}
-#bl{left:12px;bottom:12px}
-#bl span{display:inline-block;margin-right:12px;color:var(--mut)}
-#bl kbd{background:#0006;border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--ink)}
-#clock{left:50%;top:12px;transform:translateX(-50%);text-align:center;min-width:160px}
-#clock b{font-size:16px;color:var(--acc)}
-.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0805d9;z-index:5}
-.ov .m{max-width:560px;background:#1d1812;border:1px solid var(--line);border-radius:8px;padding:26px 30px;box-shadow:0 8px 0 #0008}
-.ov h1{margin:0 0 4px;font-size:34px;letter-spacing:5px;color:var(--acc)}
-.ov p{color:var(--mut);margin:8px 0}
-.ov table{margin:10px 0;border-collapse:collapse;width:100%}
-.ov td{padding:3px 6px;border-bottom:1px solid #4a3b2866;color:var(--ink)}
-.ov td:first-child{color:var(--acc);width:130px}
-button.go{margin-top:14px;background:var(--acc);color:#1a1000;border:0;border-bottom:4px solid #9b6417;border-radius:4px;padding:10px 20px;font:700 14px inherit;cursor:pointer;letter-spacing:2px}
-button.go:active{transform:translateY(2px);border-bottom-width:2px}
-.hide{display:none!important}
-#ctl{right:12px;bottom:12px;pointer-events:auto;display:flex;gap:6px}
-#ctl button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font:inherit;cursor:pointer}
-@media(max-width:800px){#tr{display:none}}
-</style>
-</head>
-<body>
-<canvas id="cv"></canvas>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Ashfall: a top-down survival game where the enemies watch how you fight and adapt their tactics." />
+    <meta name="theme-color" content="#120f0b" />
+    <title>Ashfall · Survival with Adaptive Enemies</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <canvas id="cv" aria-label="Game world"></canvas>
 
-<div class="hud box" id="tl">
-  <div class="lbl"><span>Health</span><span id="hpv">100</span></div><div class="bar"><i id="hpb" style="background:var(--hp);width:100%"></i></div>
-  <div class="lbl"><span>Food</span><span id="fv">100</span></div><div class="bar"><i id="fb" style="background:var(--food);width:100%"></i></div>
-  <div class="inv"><span>🪵 <b id="iw">0</b></span><span>🪨 <b id="is">0</b></span><span>🍖 <b id="ifd">0</b></span></div>
-  <div class="lbl" style="margin-top:8px"><span>Spear</span><span id="spv">–</span></div>
-</div>
-<div class="hud box" id="clock"><div class="lbl" style="justify-content:center">Day <b id="day">1</b> · <span id="tod">dawn</span></div><div class="lbl" style="justify-content:center;margin-top:2px">Kills <span id="kills" style="color:var(--ink);margin-left:6px">0</span> · Foes <span id="foes" style="color:var(--ink);margin-left:6px">0</span></div></div>
-<div class="hud box" id="tr">
-  <h3>◉ What the enemies know about you</h3>
-  <div id="prof"></div>
-  <h3 style="margin-top:10px">◉ How they've adapted</h3>
-  <div id="genes"></div>
-  <div id="log"></div>
-</div>
-<div class="hud box" id="bl">
-  <span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>LMB</kbd> strike</span><span><kbd>RMB</kbd> throw stone</span><span><kbd>E</kbd> harvest / feed fire</span><span><kbd>Q</kbd> eat</span><br>
-  <span style="margin-top:4px"><kbd>1</kbd> campfire 5🪵</span><span><kbd>2</kbd> spear 3🪵 2🪨</span><span><kbd>3</kbd> wall 3🪵 (at cursor)</span><span><kbd>P</kbd> pause</span>
-</div>
+    <div class="hud box" id="tl">
+      <div class="lbl"><span>Health</span><span id="hpv">100</span></div>
+      <div class="bar"><i id="hpb" class="hp"></i></div>
+      <div class="lbl"><span>Hunger</span><span id="fv">100</span></div>
+      <div class="bar"><i id="fb" class="food"></i></div>
+      <div class="inv">
+        <span title="Wood"><i data-lucide="tree-pine"></i><b id="iw">0</b></span>
+        <span title="Stone"><i data-lucide="mountain"></i><b id="is">0</b></span>
+        <span title="Food rations"><i data-lucide="drumstick"></i><b id="ifd">0</b></span>
+      </div>
+      <div class="lbl weapon"><span>Weapon</span><span id="spv">Club</span></div>
+    </div>
 
-<div class="ov" id="start"><div class="m">
-  <h1>ASHFALL</h1>
-  <p>The world is endless, the nights are long, and whatever hunts you is <b style="color:var(--ink)">watching how you fight</b>.</p>
-  <table>
-    <tr><td>Survive</td><td>Eat berries (bushes), keep a fire lit, don't die.</td></tr>
-    <tr><td>Gather</td><td>Walk up to trees, rocks and bushes and press <b>E</b>.</td></tr>
-    <tr><td>Fight</td><td>Strike with the mouse, throw stones, build walls.</td></tr>
-    <tr><td>Learn</td><td>Kite them and they learn to flank. Camp by a fire and they siege it. Brawl and they armour up.</td></tr>
-  </table>
-  <button class="go" id="go">BEGIN</button>
-</div></div>
-<div class="ov hide" id="over"><div class="m">
-  <h1 style="color:var(--hp)">YOU FELL</h1>
-  <p id="osum"></p>
-  <p style="color:var(--cy);margin-bottom:0">What they learned about you:</p>
-  <div id="olearn" style="color:var(--ink)"></div>
-  <button class="go" id="again">TRY AGAIN</button>
-</div></div>
-<div class="hud" id="ctl"><button id="pbtn">Pause (P)</button></div>
+    <div class="hud box" id="clock">
+      <div class="lbl center"><span><span id="todIcon"></span> Day <b id="day">1</b> · <span id="tod">dawn</span></span></div>
+      <div class="lbl center sub">
+        <span>Score <em id="score">0</em></span><span>Kills <em id="kills">0</em></span><span>Foes <em id="foes">0</em></span>
+      </div>
+    </div>
 
-<script>
-"use strict";
-/* ============ procedural world ============ */
-let SEED=Math.floor(Math.random()*1e9);
-const TS=32;
-function hash(x,y,s){let h=(Math.imul(x,374761393)+Math.imul(y,668265263)+SEED+Math.imul(s||0,1442695041))|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296}
-function vnoise(x,y,s){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
-  const a=hash(xi,yi,s),b=hash(xi+1,yi,s),c=hash(xi,yi+1,s),d=hash(xi+1,yi+1,s);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
-function fbm(x,y,s){let t=0,a=.5,f=1;for(let i=0;i<4;i++){t+=a*vnoise(x*f,y*f,s+i);a*=.5;f*=2}return t/.9375}
-const WATER=0,SAND=1,GRASS=2,TREE=3,ROCK=4,BUSH=5;
-let tileCache=new Map(),removed=new Set(),walls=new Map();
-function genTile(x,y){
-  const d=Math.hypot(x,y);
-  let h=fbm(x*.06,y*.06,1);
-  if(d<16)h+=(1-d/16)*.3;
-  const m=fbm(x*.09,y*.09,7),r=hash(x,y,3);
-  if(h<.37)return WATER;if(h<.42)return SAND;
-  if(d<4)return GRASS;
-  if(m>.55&&r<.6)return TREE;
-  if(fbm(x*.14,y*.14,11)>.62&&r<.7)return ROCK;
-  if(r<.03)return BUSH;
-  return GRASS;
-}
-function tileAt(x,y){
-  const k=x+','+y;
-  if(removed.has(k)){const t=tileCache.get(k);return t===TREE||t===ROCK||t===BUSH?GRASS:t}
-  let t=tileCache.get(k);if(t===undefined){t=genTile(x,y);tileCache.set(k,t);if(tileCache.size>40000)tileCache.clear()}
-  return t;
-}
-function solidTile(x,y){const t=tileAt(x,y);return t===WATER||t===TREE||t===ROCK||walls.has(x+','+y)}
-function blockedAt(px,py,r){
-  const x0=Math.floor((px-r)/TS),x1=Math.floor((px+r)/TS),y0=Math.floor((py-r)/TS),y1=Math.floor((py+r)/TS);
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(solidTile(x,y)){
-    // circle vs rect (trees/rocks are smaller than a tile)
-    const t=tileAt(x,y);const pad=(t===TREE||t===ROCK)?6:0;
-    const rx=x*TS+pad,ry=y*TS+pad,rw=TS-2*pad;
-    const cx=Math.max(rx,Math.min(px,rx+rw)),cy=Math.max(ry,Math.min(py,ry+rw));
-    if((px-cx)**2+(py-cy)**2<r*r)return true;
-  }
-  return false;
-}
-function moveEnt(e,dx,dy){
-  let hit=false;
-  if(dx&&!blockedAt(e.x+dx,e.y,e.r))e.x+=dx;else if(dx)hit=true;
-  if(dy&&!blockedAt(e.x,e.y+dy,e.r))e.y+=dy;else if(dy)hit=true;
-  return hit;
-}
+    <div class="hud box" id="tr">
+      <h3>What the enemies know about you</h3>
+      <div id="prof"></div>
+      <h3 class="gap">How they have adapted</h3>
+      <div id="genes"></div>
+      <div id="log" aria-live="polite"></div>
+    </div>
 
-/* ============ state ============ */
-const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-const dark=document.createElement('canvas'),dctx=dark.getContext('2d');
-let W=0,H=0,dpr=1;
-function resize(){dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;dark.width=W;dark.height=H}
-addEventListener('resize',resize);resize();
+    <div class="hud box" id="bl">
+      <span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>LMB</kbd> strike</span><span><kbd>RMB</kbd> throw stone</span>
+      <span><kbd>E</kbd> gather / feed fire</span><span><kbd>Q</kbd> eat</span><span><kbd>P</kbd> pause</span><br />
+      <span><kbd>1</kbd> campfire · 5 wood</span><span><kbd>2</kbd> spear · 3 wood 2 stone</span><span><kbd>3</kbd> wall at cursor · 3 wood</span>
+    </div>
 
-const DAY=100;
-let P,enemies,projs,fires,parts,swings,time,dayNo,kills,paused=true,running=false,spawnT,logLines,profile,G,adaptT,stats,keys={},mouse={x:0,y:0,l:false,r:false},cam={x:0,y:0},shake=0,prevNightDay=-1;
-const GENES_DEF={spd:1,flank:.15,lead:0,dodge:0,armor:0,range:190,retreat:0,aggr:1};
-function newGame(){
-  SEED=Math.floor(Math.random()*1e9);tileCache=new Map();removed=new Set();walls=new Map();
-  P={x:0.5*TS,y:0.5*TS,r:9,hp:100,food:100,wood:0,stone:0,meat:0,cd:0,tcd:0,hcd:0,spear:0,vx:0,vy:0,face:0,inv:0,sw:0};
-  enemies=[];projs=[];fires=[];parts=[];swings=[];time=0;dayNo=1;kills=0;spawnT=6;adaptT=20;logLines=[];
-  profile={melee:0,ranged:0,kite:0,camp:0,build:0};
-  G={...GENES_DEF,w:{chaser:1,flanker:.3,spitter:.15,brute:.05}};
-  stats={melee:0,ranged:0,kite:0,camp:0,build:0,swings:0};
-  log('You wake in a quiet meadow. Dawn.');
-  document.getElementById('log').innerHTML='';renderLog();
-}
-function log(s){logLines.unshift(s);if(logLines.length>6)logLines.pop();renderLog()}
-function renderLog(){document.getElementById('log').innerHTML=logLines.map(l=>'<div>'+l+'</div>').join('')}
+    <div class="hud" id="ctl">
+      <button id="intelBtn" type="button" aria-label="Show enemy intel" title="Enemy intel"><i data-lucide="brain"></i></button>
+      <button id="soundBtn" type="button" aria-label="Toggle sound" title="Sound (M)"><i data-lucide="volume-2"></i></button>
+      <button id="pbtn" type="button" aria-label="Pause" title="Pause (P)"><i data-lucide="pause"></i></button>
+    </div>
 
-/* ============ input ============ */
-addEventListener('keydown',e=>{
-  keys[e.code]=true;
-  if(!running)return;
-  if(e.code==='KeyP')togglePause();
-  if(paused)return;
-  if(e.code==='KeyE')harvest();
-  if(e.code==='KeyQ')eat();
-  if(e.code==='Digit1')craft('fire');
-  if(e.code==='Digit2')craft('spear');
-  if(e.code==='Digit3')craft('wall');
-});
-addEventListener('keyup',e=>keys[e.code]=false);
-cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
-cv.addEventListener('mousedown',e=>{if(e.button===0)mouse.l=true;if(e.button===2)mouse.r=true});
-addEventListener('mouseup',e=>{if(e.button===0)mouse.l=false;if(e.button===2)mouse.r=false});
-cv.addEventListener('contextmenu',e=>e.preventDefault());
-function togglePause(){paused=!paused;document.getElementById('pbtn').textContent=paused?'Resume (P)':'Pause (P)'}
-document.getElementById('pbtn').onclick=()=>running&&togglePause();
-document.getElementById('go').onclick=()=>{document.getElementById('start').classList.add('hide');newGame();running=true;paused=false};
-document.getElementById('again').onclick=()=>{document.getElementById('over').classList.add('hide');newGame();running=true;paused=false};
+    <!-- touch controls -->
+    <div class="touch" id="touch" hidden>
+      <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+      <div class="tbtns">
+        <button data-act="attack" class="big" type="button" aria-label="Strike"><i data-lucide="swords"></i></button>
+        <button data-act="throw" type="button" aria-label="Throw stone"><i data-lucide="crosshair"></i></button>
+        <button data-act="harvest" type="button" aria-label="Gather"><i data-lucide="hand"></i></button>
+        <button data-act="eat" type="button" aria-label="Eat"><i data-lucide="drumstick"></i></button>
+        <button data-act="fire" type="button" aria-label="Build campfire"><i data-lucide="flame"></i></button>
+        <button data-act="spear" type="button" aria-label="Craft spear"><i data-lucide="sword"></i></button>
+        <button data-act="wall" type="button" aria-label="Build wall"><i data-lucide="brick-wall"></i></button>
+      </div>
+    </div>
 
-/* ============ player actions ============ */
-const mw=()=>({x:mouse.x+cam.x-W/2,y:mouse.y+cam.y-H/2});
-function pop(x,y,col,n=6,sp=60){for(let i=0;i<n;i++){const a=Math.random()*6.28,s=Math.random()*sp;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:.5+Math.random()*.3,c:col})}}
-function harvest(){
-  if(P.hcd>0)return;
-  // feed fire?
-  for(const f of fires){ if(Math.hypot(f.x-P.x,f.y-P.y)<50&&P.wood>=2){P.wood-=2;f.fuel=Math.min(120,f.fuel+35);P.hcd=.3;pop(f.x,f.y,'#ffb347',8);return} }
-  const tx=Math.floor(P.x/TS),ty=Math.floor(P.y/TS);let best=null,bd=60;
-  for(let y=ty-2;y<=ty+2;y++)for(let x=tx-2;x<=tx+2;x++){
-    const t=tileAt(x,y);if(t!==TREE&&t!==ROCK&&t!==BUSH)continue;
-    const d=Math.hypot(x*TS+16-P.x,y*TS+16-P.y);if(d<bd){bd=d;best={x,y,t}}
-  }
-  if(!best)return;
-  P.hcd=.3;const k=best.x+','+best.y;
-  if(!tileCache.has(k))tileCache.set(k,best.t);
-  removed.add(k);
-  const cx=best.x*TS+16,cy=best.y*TS+16;
-  if(best.t===TREE){P.wood+=2+(Math.random()<.5?1:0);pop(cx,cy,'#7a5230',8)}
-  if(best.t===ROCK){P.stone+=2;pop(cx,cy,'#aab',8)}
-  if(best.t===BUSH){P.meat+=2;pop(cx,cy,'#c33',8)}
-}
-function eat(){if(P.meat>0&&P.food<100){P.meat--;P.food=Math.min(100,P.food+28);pop(P.x,P.y,'#8fbf4a',6)}}
-function craft(w){
-  if(w==='fire'){if(P.wood<5)return flash('Need 5 wood');P.wood-=5;fires.push({x:P.x+Math.cos(P.face)*30,y:P.y+Math.sin(P.face)*30,fuel:70,hp:20,t:0});log('Campfire lit.');}
-  if(w==='spear'){if(P.wood<3||P.stone<2)return flash('Need 3 wood + 2 stone');P.wood-=3;P.stone-=2;P.spear=30;log('Spear crafted (30 uses).');}
-  if(w==='wall'){
-    if(P.wood<3)return flash('Need 3 wood');const m=mw();
-    if(Math.hypot(m.x-P.x,m.y-P.y)>150)return flash('Too far');
-    const x=Math.floor(m.x/TS),y=Math.floor(m.y/TS);
-    if(solidTile(x,y)||(Math.floor(P.x/TS)===x&&Math.floor(P.y/TS)===y)||tileAt(x,y)===WATER)return flash("Can't build there");
-    P.wood-=3;walls.set(x+','+y,{hp:8});stats.build++;pop(x*TS+16,y*TS+16,'#b9824a',6);
-  }
-}
-let flashT=0,flashMsg='';
-function flash(m){flashMsg=m;flashT=1.2}
-function attack(){
-  if(P.cd>0)return;
-  const sp=P.spear>0;P.cd=sp?.36:.46;P.face=Math.atan2(mouse.y+cam.y-H/2-P.y,mouse.x+cam.x-W/2-P.x);
-  const reach=sp?66:48,dmg=sp?2:1;let hit=false,near=false;
-  swings.push({x:P.x,y:P.y,a:P.face,reach,t:0});
-  for(const e of enemies){
-    const d=Math.hypot(e.x-P.x,e.y-P.y);if(d<150)near=true;
-    if(d>reach+e.r)continue;
-    let da=Math.atan2(e.y-P.y,e.x-P.x)-P.face;da=Math.atan2(Math.sin(da),Math.cos(da));
-    if(Math.abs(da)>1.1)continue;
-    hurtEnemy(e,dmg,P.face);hit=true;
-  }
-  if(sp)P.spear--;
-  if(near){profile.melee+=1.2;stats.melee++}
-  if(!hit&&!near){}
-}
-function throwStone(){
-  if(P.tcd>0||P.stone<1)return;
-  P.stone--;P.tcd=.55;const a=Math.atan2(mouse.y+cam.y-H/2-P.y,mouse.x+cam.x-W/2-P.x);
-  projs.push({x:P.x,y:P.y,vx:Math.cos(a)*440,vy:Math.sin(a)*440,dmg:1.6,from:'p',life:1.1,r:4});
-  profile.ranged+=1.5;stats.ranged++;
-}
-function hurtEnemy(e,d,ang){
-  e.hp-=d;e.flash=.15;const kb=e.type==='brute'?60:140;
-  moveEnt(e,Math.cos(ang)*kb*.1,Math.sin(ang)*kb*.1);pop(e.x,e.y,'#d44',5);
-  if(e.hp<=0){
-    kills++;enemies.splice(enemies.indexOf(e),1);pop(e.x,e.y,e.col,14,90);
-    if(Math.random()<.4)P.meat++;
-  }
-}
+    <div class="ov" id="start">
+      <div class="m">
+        <h1>ASHFALL</h1>
+        <p>The world is endless, the nights are long, and whatever hunts you is <b>watching how you fight</b>.</p>
+        <table>
+          <tr><td>Survive</td><td>Keep fed with berries, stay near firelight at night, don't die.</td></tr>
+          <tr><td>Gather</td><td>Walk up to trees, rocks and bushes and press <b>E</b>.</td></tr>
+          <tr><td>Fight</td><td>Strike, throw stones, craft a spear, build walls.</td></tr>
+          <tr><td>Adapt</td><td>Kite them and they learn to flank. Camp by a fire and they siege it. Brawl and they armour up. Wall in and brutes come.</td></tr>
+        </table>
+        <p class="best" id="bestStart"></p>
+        <button class="go" id="go" type="button">BEGIN</button>
+      </div>
+    </div>
 
-/* ============ enemies ============ */
-const TYPES={
-  chaser:{hp:3,spd:78,r:10,col:'#c0504d',dmg:8},
-  flanker:{hp:2,spd:98,r:9,col:'#e0b04a',dmg:7},
-  spitter:{hp:2.2,spd:60,r:9,col:'#8b5fbf',dmg:7},
-  brute:{hp:7,spd:50,r:14,col:'#5a6b4a',dmg:16}
-};
-function pickType(){
-  const w=G.w;let tot=0;for(const k in w)tot+=w[k];let r=Math.random()*tot;
-  for(const k in w){r-=w[k];if(r<=0)return k}return 'chaser';
-}
-function spawnEnemy(){
-  const type=pickType(),T=TYPES[type];
-  for(let i=0;i<14;i++){
-    const a=Math.random()*6.28,d=430+Math.random()*120,x=P.x+Math.cos(a)*d,y=P.y+Math.sin(a)*d;
-    if(blockedAt(x,y,T.r+2))continue;
-    const m=()=>1+(Math.random()-.5)*.2;
-    enemies.push({type,x,y,r:T.r,hp:T.hp*(1+G.armor),maxhp:T.hp*(1+G.armor),col:T.col,spd:T.spd*G.spd*m(),
-      side:Math.random()<.5?-1:1,ph:Math.random()*6.28,cd:0,flash:0,ret:0,stuck:0,lx:x,ly:y,wander:0,wa:0,sh:2+Math.random(),
-      flank:Math.min(1,G.flank+(Math.random()-.5)*.2),dodge:Math.min(1,G.dodge+(Math.random()-.5)*.2),range:G.range+(Math.random()-.5)*30});
-    return;
-  }
-}
-function nearestFire(x,y,maxd){let b=null,bd=maxd;for(const f of fires){const d=Math.hypot(f.x-x,f.y-y);if(d<bd){bd=d;b=f}}return b}
-function updateEnemy(e,dt){
-  const dx=P.x-e.x,dy=P.y-e.y,d=Math.hypot(dx,dy)||1,nx=dx/d,ny=dy/d;
-  e.cd-=dt;e.flash-=dt;e.ret-=dt;
-  let tx=nx,ty=ny,sp=e.spd;
-  const fire=nearestFire(e.x,e.y,400);
-  if(e.type==='chaser'){
-    const w=Math.sin(time*4+e.ph)*e.dodge*.9;
-    tx=nx-ny*w;ty=ny+nx*w;
-    if(G.retreat>.3&&e.ret>0){tx=-nx;ty=-ny;sp*=.9}
-  }else if(e.type==='flanker'){
-    // predict where the player is going, approach from the side, then commit
-    const lead=.35+G.lead*1.1;
-    const px=P.x+P.vx*lead,py=P.y+P.vy*lead,qx=px-e.x,qy=py-e.y,qd=Math.hypot(qx,qy)||1;
-    if(qd>150){
-      const ang=Math.atan2(qy,qx)+e.side*e.flank*1.25*Math.min(1,(qd-150)/200);
-      tx=Math.cos(ang);ty=Math.sin(ang);
-    }else{tx=qx/qd;ty=qy/qd}
-    if(G.retreat>.3&&e.ret>0){tx=-nx;ty=-ny}
-  }else if(e.type==='spitter'){
-    const R=e.range;
-    if(d<R-35){tx=-nx;ty=-ny}else if(d>R+35){tx=nx;ty=ny}else{tx=-ny*e.side;ty=nx*e.side;sp*=.6}
-    if(e.cd<=0&&d<R+90){
-      e.cd=2.3;const lead=G.lead*.6,px=P.x+P.vx*lead*d/230,py=P.y+P.vy*lead*d/230,a=Math.atan2(py-e.y,px-e.x);
-      projs.push({x:e.x,y:e.y,vx:Math.cos(a)*235,vy:Math.sin(a)*235,dmg:7,from:'e',life:2.2,r:5});
-    }
-  }else if(e.type==='brute'){
-    // goes for whatever shelters the player: fires, then walls near player, else the player
-    if(fire&&Math.hypot(fire.x-P.x,fire.y-P.y)<260){const fx=fire.x-e.x,fy=fire.y-e.y,fd=Math.hypot(fx,fy)||1;tx=fx/fd;ty=fy/fd;
-      if(fd<e.r+16&&e.cd<=0){e.cd=.7;fire.fuel-=7;pop(fire.x,fire.y,'#ffb347',6)}}
-  }
-  // fear of fire (except brutes)
-  if(e.type!=='brute'&&fire){
-    const fx=e.x-fire.x,fy=e.y-fire.y,fd=Math.hypot(fx,fy);
-    if(fd<95){tx+=fx/fd*2.2;ty+=fy/fd*2.2}
-  }
-  // unstuck wander
-  e.stuck+=dt;
-  if(e.stuck>.8){ if(Math.hypot(e.x-e.lx,e.y-e.ly)<10&&d>40){e.wander=.9;e.wa=Math.random()*6.28} e.lx=e.x;e.ly=e.y;e.stuck=0 }
-  if(e.wander>0){e.wander-=dt;tx=Math.cos(e.wa);ty=Math.sin(e.wa)}
-  const tl=Math.hypot(tx,ty)||1;tx/=tl;ty/=tl;
-  const hit=moveEnt(e,tx*sp*dt,ty*sp*dt);
-  if(hit&&e.type==='brute'){ // smash walls
-    const wx=Math.floor((e.x+tx*(e.r+6))/TS),wy=Math.floor((e.y+ty*(e.r+6))/TS),w=walls.get(wx+','+wy);
-    if(w&&e.cd<=0){e.cd=.6;w.hp-=2;pop(wx*TS+16,wy*TS+16,'#b9824a',5);if(w.hp<=0)walls.delete(wx+','+wy)}
-  }
-  // melee
-  const reach=e.r+P.r+5;
-  if(d<reach&&e.cd<=0&&e.type!=='spitter'){
-    e.cd=e.type==='brute'?1.1:.8;hurtPlayer(TYPES[e.type].dmg);e.ret=G.retreat>.3?.9:0;
-  }
-}
-function hurtPlayer(d){
-  if(P.inv>0)return;P.hp-=d;P.inv=.25;shake=6;pop(P.x,P.y,'#e44',6);
-  if(P.hp<=0)die();
-}
-function die(){
-  running=false;paused=true;
-  document.getElementById('over').classList.remove('hide');
-  document.getElementById('osum').textContent=`You lasted ${dayNo} day${dayNo>1?'s':''} and defeated ${kills} enemies.`;
-  const s=shares();
-  document.getElementById('olearn').innerHTML=
-   `<div>• You were seen <b>fighting up close</b> ${pct(s.melee)}, <b>throwing</b> ${pct(s.ranged)}, <b>kiting</b> ${pct(s.kite)}, <b>camping</b> ${pct(s.camp)} of the time.</div>`+
-   logLines.slice(0,3).map(l=>'<div>• '+l+'</div>').join('');
-}
-const pct=v=>Math.round(v*100)+'%';
+    <div class="ov hide" id="paused">
+      <div class="m small">
+        <h1>PAUSED</h1>
+        <p id="pauseInfo"></p>
+        <div class="btnrow">
+          <button class="go" id="resume" type="button">RESUME</button>
+          <button class="go alt" id="restart" type="button">RESTART</button>
+        </div>
+      </div>
+    </div>
 
-/* ============ adaptation ============ */
-function shares(){
-  const t=profile.melee+profile.ranged+profile.kite+profile.camp+0.001;
-  return{melee:profile.melee/t,ranged:profile.ranged/t,kite:profile.kite/t,camp:profile.camp/t,tot:t};
-}
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function adapt(announce){
-  const s=shares();if(s.tot<4)return;
-  const old={...G};
-  const k=announce?.5:.25;
-  const ease=(c,t)=>c+(t-c)*k;
-  G.flank=ease(G.flank,clamp(.15+s.kite*1.6,0,1));
-  G.lead=ease(G.lead,clamp(s.kite*1.8,0,1));
-  G.spd=ease(G.spd,clamp(1+s.kite*.35+dayNo*.012,1,1.4));
-  G.range=ease(G.range,clamp(190+s.camp*140,190,330));
-  G.armor=ease(G.armor,clamp(s.melee*.9,0,.9));
-  G.retreat=ease(G.retreat,clamp(s.melee*1.6,0,1));
-  G.dodge=ease(G.dodge,clamp(s.ranged*1.8,0,1));
-  const w=G.w;
-  w.flanker=ease(w.flanker,.25+s.kite*3);
-  w.spitter=ease(w.spitter,.15+s.camp*2.6+s.ranged*.4);
-  w.brute=ease(w.brute,.05+s.melee*1.4+s.camp*1.3);
-  w.chaser=1;
-  if(announce){
-    const top=Object.entries({kite:s.kite,camp:s.camp,melee:s.melee,ranged:s.ranged}).sort((a,b)=>b[1]-a[1])[0];
-    const msg={kite:'You keep your distance — flankers now lead their targets and cut you off.',
-      camp:'You hole up near fire — spitters outrange you and brutes go for your flames.',
-      melee:'You trade blows — enemies grow armoured and strike then withdraw.',
-      ranged:'Your stones are a habit — enemies weave to dodge them.'}[top[0]];
-    if(top[1]>.28)log('Day '+dayNo+': '+msg);
-    else log('Day '+dayNo+': They are still studying you.');
-  }
-}
+    <div class="ov hide" id="over">
+      <div class="m">
+        <h1 class="dead">YOU FELL</h1>
+        <p id="osum"></p>
+        <table id="ostats"></table>
+        <p class="learn-h">What they learned about you:</p>
+        <div id="olearn"></div>
+        <button class="go" id="again" type="button">TRY AGAIN</button>
+      </div>
+    </div>
 
-/* ============ main update ============ */
-function nightFactor(){const p=(time/DAY)%1;return clamp(.5-.9*Math.sin(2*Math.PI*(p+.1)),0,1)}
-function update(dt){
-  time+=dt;
-  const nf=nightFactor(),nd=Math.floor(time/DAY)+1;
-  if(nd!==dayNo){dayNo=nd;adapt(true);}
-  // player move
-  let ix=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),iy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
-  const il=Math.hypot(ix,iy)||1;ix/=il;iy/=il;
-  const spr=keys.ShiftLeft||keys.ShiftRight,sp=(spr?175:118);
-  const ox=P.x,oy=P.y;
-  moveEnt(P,ix*sp*dt,iy*sp*dt);
-  P.vx=(P.x-ox)/dt;P.vy=(P.y-oy)/dt;
-  P.face=Math.atan2(mouse.y+cam.y-H/2-P.y,mouse.x+cam.x-W/2-P.x);
-  P.cd-=dt;P.tcd-=dt;P.hcd-=dt;P.inv-=dt;
-  if(mouse.l)attack();if(mouse.r)throwStone();
-  // needs
-  P.food-=dt*(spr&&(ix||iy)?.55:.3);
-  if(P.food<=0){P.food=0;P.hp-=dt*2.5;if(P.hp<=0)return die()}
-  const nearFire=nearestFire(P.x,P.y,140);
-  if(P.food>35)P.hp=Math.min(100,P.hp+dt*(nearFire?3.2:.9));
-  // exposure at night away from light
-  if(nf>.6&&!nearFire){P.hp-=dt*.35;if(P.hp<=0)return die()}
-  // profile tracking
-  let ne=null,nd2=1e9;for(const e of enemies){const d=Math.hypot(e.x-P.x,e.y-P.y);if(d<nd2){nd2=d;ne=e}}
-  const spd=Math.hypot(P.vx,P.vy);
-  if(ne&&nd2<240&&nd2>70&&spd>70){
-    const dot=((P.x-ne.x)*P.vx+(P.y-ne.y)*P.vy)/(nd2*spd);
-    if(dot>.45){profile.kite+=dt*1.6;stats.kite+=dt}
-  }
-  if(nearFire&&spd<40){profile.camp+=dt*(ne&&nd2<350?1.6:.6);stats.camp+=dt}
-  else if(spd<12&&ne&&nd2<350){profile.camp+=dt*.5}
-  profile.build+=0;
-  // decay (half-life ~45s)
-  const dec=Math.pow(.5,dt/45);for(const k in profile)profile[k]*=dec;
-  // soft adaptation
-  adaptT-=dt;if(adaptT<=0){adaptT=15;adapt(false)}
-  // spawns
-  const cap=5+dayNo*2+Math.round(nf*5);
-  spawnT-=dt;
-  if(spawnT<=0){spawnT=Math.max(1.4,(7-dayNo*.4)/(1+nf*2.2));if(enemies.length<cap)spawnEnemy();}
-  for(const e of enemies)updateEnemy(e,dt);
-  // enemy separation
-  for(let i=0;i<enemies.length;i++)for(let j=i+1;j<enemies.length;j++){
-    const a=enemies[i],b=enemies[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),m=a.r+b.r;
-    if(d>0&&d<m){const p=(m-d)/2/d;moveEnt(a,-dx*p,-dy*p);moveEnt(b,dx*p,dy*p)}
-  }
-  // despawn far
-  for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(Math.hypot(e.x-P.x,e.y-P.y)>900)enemies.splice(i,1)}
-  // fires
-  for(let i=fires.length-1;i>=0;i--){const f=fires[i];f.fuel-=dt;f.t+=dt;if(f.fuel<=0){pop(f.x,f.y,'#555',8);fires.splice(i,1);log('A fire burned out.')}}
-  // projectiles
-  for(let i=projs.length-1;i>=0;i--){
-    const p=projs[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;let dead=p.life<=0;
-    const tx=Math.floor(p.x/TS),ty=Math.floor(p.y/TS),k=tx+','+ty;
-    if(walls.has(k)){if(p.from==='e'){const w=walls.get(k);w.hp-=1;if(w.hp<=0)walls.delete(k)}dead=true}
-    else if(tileAt(tx,ty)===TREE||tileAt(tx,ty)===ROCK)dead=true;
-    if(!dead&&p.from==='p'){for(const e of enemies){if(Math.hypot(e.x-p.x,e.y-p.y)<e.r+p.r){hurtEnemy(e,p.dmg,Math.atan2(p.vy,p.vx));dead=true;break}}}
-    if(!dead&&p.from==='e'){
-      if(Math.hypot(P.x-p.x,P.y-p.y)<P.r+p.r){hurtPlayer(p.dmg);dead=true}
-      for(const f of fires)if(Math.hypot(f.x-p.x,f.y-p.y)<14){f.fuel-=5;dead=true}
-    }
-    if(dead){pop(p.x,p.y,p.from==='e'?'#a6f':'#ccc',4,40);projs.splice(i,1)}
-  }
-  for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt;if(q.life<=0)parts.splice(i,1)}
-  for(let i=swings.length-1;i>=0;i--){swings[i].t+=dt;if(swings[i].t>.16)swings.splice(i,1)}
-  shake=Math.max(0,shake-dt*30);flashT-=dt;
-}
+    <div class="ov hide" id="err"><div class="m small"><h1>ERROR</h1><p id="errMsg"></p></div></div>
 
-/* ============ render ============ */
-const COL={[WATER]:['#2b5d82','#2f6489'],[SAND]:['#cdb26e','#c6aa66'],[GRASS]:['#4d7a3a','#52813f'],[TREE]:['#4d7a3a','#52813f'],[ROCK]:['#4d7a3a','#52813f'],[BUSH]:['#4d7a3a','#52813f']};
-function render(){
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  cam.x+=(P.x-cam.x)*.18;cam.y+=(P.y-cam.y)*.18;
-  const sx=(Math.random()-.5)*shake,sy=(Math.random()-.5)*shake;
-  const offX=W/2-cam.x+sx,offY=H/2-cam.y+sy;
-  ctx.fillStyle='#2b5d82';ctx.fillRect(0,0,W,H);
-  ctx.translate(offX,offY);
-  const x0=Math.floor((cam.x-W/2)/TS)-1,x1=Math.floor((cam.x+W/2)/TS)+1,y0=Math.floor((cam.y-H/2)/TS)-1,y1=Math.floor((cam.y+H/2)/TS)+1;
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
-    const t=tileAt(x,y);ctx.fillStyle=COL[t][(x+y)&1];ctx.fillRect(x*TS,y*TS,TS+1,TS+1);
-    if(t===WATER&&hash(x,y,5)<.2){ctx.fillStyle='#ffffff18';ctx.fillRect(x*TS+6+Math.sin(time*2+x)*3,y*TS+14,12,2)}
-    if(t===GRASS&&hash(x,y,6)<.12){ctx.fillStyle='#3e6a2e';ctx.fillRect(x*TS+8,y*TS+10,2,5);ctx.fillRect(x*TS+14,y*TS+12,2,4)}
-  }
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
-    const t=tileAt(x,y),cx=x*TS+16,cy=y*TS+16;
-    if(t===TREE){ctx.fillStyle='#5b3d22';ctx.fillRect(cx-3,cy+2,6,12);ctx.fillStyle='#2f5a2a';ctx.beginPath();ctx.arc(cx,cy-3,14,0,7);ctx.fill();ctx.fillStyle='#3b6e33';ctx.beginPath();ctx.arc(cx-4,cy-6,7,0,7);ctx.fill()}
-    else if(t===ROCK){ctx.fillStyle='#7d8791';ctx.beginPath();ctx.moveTo(cx-12,cy+9);ctx.lineTo(cx-8,cy-8);ctx.lineTo(cx+4,cy-11);ctx.lineTo(cx+12,cy+2);ctx.lineTo(cx+9,cy+10);ctx.fill();ctx.fillStyle='#a0aab4';ctx.fillRect(cx-5,cy-6,6,4)}
-    else if(t===BUSH){ctx.fillStyle='#2f6a2e';ctx.beginPath();ctx.arc(cx,cy+2,10,0,7);ctx.fill();ctx.fillStyle='#d23a3a';for(const[a,b]of[[-4,0],[3,-2],[1,5],[-2,4],[5,3]]){ctx.beginPath();ctx.arc(cx+a,cy+b,2,0,7);ctx.fill()}}
-    const w=walls.get(x+','+y);
-    if(w){ctx.fillStyle='#8a5a30';ctx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2);ctx.fillStyle='#a8743f';ctx.fillRect(x*TS+3,y*TS+3,TS-6,6);ctx.fillRect(x*TS+3,y*TS+14,TS-6,6);ctx.fillStyle='#0006';ctx.fillRect(x*TS+1,y*TS+TS-3,TS-2,2);
-      if(w.hp<8){ctx.fillStyle='#000a';ctx.fillRect(x*TS+4,y*TS+TS-8,(TS-8)*(w.hp/8),3)}}
-  }
-  // fires
-  for(const f of fires){
-    ctx.fillStyle='#4a3520';ctx.fillRect(f.x-8,f.y+2,16,5);
-    const fl=Math.sin(f.t*14)*2;ctx.fillStyle='#e8672b';ctx.beginPath();ctx.moveTo(f.x-7,f.y+3);ctx.quadraticCurveTo(f.x,f.y-16+fl,f.x+7,f.y+3);ctx.fill();
-    ctx.fillStyle='#ffd35a';ctx.beginPath();ctx.moveTo(f.x-4,f.y+3);ctx.quadraticCurveTo(f.x,f.y-9-fl,f.x+4,f.y+3);ctx.fill();
-    ctx.fillStyle='#0008';ctx.fillRect(f.x-9,f.y+10,18,3);ctx.fillStyle='#e8a33d';ctx.fillRect(f.x-9,f.y+10,18*clamp(f.fuel/120,0,1),3);
-  }
-  // enemies
-  for(const e of enemies){
-    ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(e.x,e.y+e.r*.7,e.r,e.r*.45,0,0,7);ctx.fill();
-    ctx.fillStyle=e.flash>0?'#fff':e.col;
-    if(e.type==='chaser'){ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,7);ctx.fill()}
-    else if(e.type==='flanker'){const a=Math.atan2(P.y-e.y,P.x-e.x);ctx.beginPath();ctx.moveTo(e.x+Math.cos(a)*e.r*1.4,e.y+Math.sin(a)*e.r*1.4);ctx.lineTo(e.x+Math.cos(a+2.4)*e.r*1.1,e.y+Math.sin(a+2.4)*e.r*1.1);ctx.lineTo(e.x+Math.cos(a-2.4)*e.r*1.1,e.y+Math.sin(a-2.4)*e.r*1.1);ctx.fill()}
-    else if(e.type==='spitter'){ctx.beginPath();for(let i=0;i<6;i++){const a=i*1.047+time;ctx.lineTo(e.x+Math.cos(a)*e.r,e.y+Math.sin(a)*e.r)}ctx.fill()}
-    else{ctx.fillRect(e.x-e.r,e.y-e.r,e.r*2,e.r*2);ctx.strokeStyle='#2c3622';ctx.lineWidth=3;ctx.strokeRect(e.x-e.r+1,e.y-e.r+1,e.r*2-2,e.r*2-2)}
-    ctx.fillStyle='#000a';ctx.fillRect(e.x-e.sh*3,e.y-e.r-8,e.sh*6,3);
-    ctx.fillStyle='#e55';ctx.fillRect(e.x-e.sh*3,e.y-e.r-8,e.sh*6*clamp(e.hp/e.maxhp,0,1),3);
-    ctx.fillStyle='#fff';ctx.fillRect(e.x-3,e.y-3,2,2);ctx.fillRect(e.x+1,e.y-3,2,2);
-  }
-  for(const p of projs){ctx.fillStyle=p.from==='e'?'#b57bff':'#d8d8d8';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}
-  // swing
-  for(const s of swings){ctx.strokeStyle=`rgba(255,240,200,${1-s.t/.16})`;ctx.lineWidth=5;ctx.beginPath();ctx.arc(P.x,P.y,s.reach*.8,s.a-1.0,s.a+1.0);ctx.stroke()}
-  // player
-  ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(P.x,P.y+7,9,4,0,0,7);ctx.fill();
-  ctx.fillStyle=P.inv>0&&Math.floor(time*30)%2?'#fff':'#e8d3a8';ctx.beginPath();ctx.arc(P.x,P.y,P.r,0,7);ctx.fill();
-  ctx.fillStyle='#3f6fb0';ctx.beginPath();ctx.arc(P.x,P.y,P.r,P.face+.9,P.face+5.4);ctx.fill();
-  ctx.strokeStyle=P.spear>0?'#d8c28a':'#7a5230';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(P.x+Math.cos(P.face)*8,P.y+Math.sin(P.face)*8);ctx.lineTo(P.x+Math.cos(P.face)*(P.spear>0?30:18),P.y+Math.sin(P.face)*(P.spear>0?30:18));ctx.stroke();
-  for(const q of parts){ctx.globalAlpha=clamp(q.life*2,0,1);ctx.fillStyle=q.c;ctx.fillRect(q.x,q.y,3,3)}ctx.globalAlpha=1;
-  // wall ghost
-  const m=mw();if(P.wood>=3){const gx=Math.floor(m.x/TS),gy=Math.floor(m.y/TS);ctx.strokeStyle='#ffffff44';ctx.lineWidth=1;ctx.strokeRect(gx*TS,gy*TS,TS,TS)}
-  // darkness
-  const nf=nightFactor();
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  if(nf>0.02){
-    dctx.globalCompositeOperation='source-over';dctx.clearRect(0,0,W,H);dctx.fillStyle=`rgba(4,6,22,${nf*.9})`;dctx.fillRect(0,0,W,H);
-    dctx.globalCompositeOperation='destination-out';
-    const hole=(x,y,r,a)=>{const g=dctx.createRadialGradient(x,y,r*.1,x,y,r);g.addColorStop(0,`rgba(0,0,0,${a})`);g.addColorStop(1,'rgba(0,0,0,0)');dctx.fillStyle=g;dctx.beginPath();dctx.arc(x,y,r,0,7);dctx.fill()};
-    hole(P.x+offX,P.y+offY,150,.85);
-    for(const f of fires)hole(f.x+offX,f.y+offY,125+Math.sin(f.t*9)*5,1);
-    ctx.drawImage(dark,0,0,W,H);
-  }
-  // vignette on low hp
-  if(P.hp<35){const g=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.8);g.addColorStop(0,'rgba(180,0,0,0)');g.addColorStop(1,`rgba(180,0,0,${.5*(1-P.hp/35)})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
-  if(flashT>0){ctx.fillStyle='#f1e6d0';ctx.font='700 14px ui-monospace,monospace';ctx.textAlign='center';ctx.globalAlpha=clamp(flashT,0,1);ctx.fillText(flashMsg,W/2,H*.78);ctx.globalAlpha=1}
-}
-
-/* ============ HUD ============ */
-const $=id=>document.getElementById(id);
-const profRows=[['melee','Close combat','#d9453b'],['ranged','Ranged','#9aa3ad'],['kite','Kiting','#e8a33d'],['camp','Camping','#6fd0c8']];
-$('prof').innerHTML=profRows.map(r=>`<div class="pr"><span>${r[1]}</span><div class="bar"><i id="p_${r[0]}" style="background:${r[2]};width:0"></i></div><em id="pv_${r[0]}">0%</em></div>`).join('');
-const geneRows=[['flank','Flank bias','#e0b04a',v=>v],['lead','Intercept aim','#e0b04a',v=>v],['armor','Armour','#5a6b4a',v=>v/.9],['dodge','Dodging','#c0504d',v=>v],['spd','Speed','#c0504d',v=>(v-1)/.4],['range','Siege range','#8b5fbf',v=>(v-190)/140]];
-$('genes').innerHTML=geneRows.map(r=>`<div class="pr"><span>${r[1]}</span><div class="bar"><i id="g_${r[0]}" style="background:${r[2]};width:0"></i></div><em id="gv_${r[0]}"></em></div>`).join('');
-function hud(){
-  $('hpb').style.width=clamp(P.hp,0,100)+'%';$('hpv').textContent=Math.ceil(P.hp);
-  $('fb').style.width=P.food+'%';$('fv').textContent=Math.ceil(P.food);
-  $('iw').textContent=P.wood;$('is').textContent=P.stone;$('ifd').textContent=P.meat;
-  $('spv').textContent=P.spear>0?P.spear+' uses':'–';
-  const p=(time/DAY)%1,nf=nightFactor();
-  $('day').textContent=dayNo;$('tod').textContent=nf>.7?'night':nf>.25?(p<.5?'morning':'dusk'):'daylight';
-  $('kills').textContent=kills;$('foes').textContent=enemies.length;
-  const s=shares();
-  for(const r of profRows){const v=s.tot<2?0:s[r[0]];$('p_'+r[0]).style.width=pct(v);$('pv_'+r[0]).textContent=pct(v)}
-  for(const r of geneRows){const v=clamp(r[3](G[r[0]]),0,1);$('g_'+r[0]).style.width=pct(v);$('gv_'+r[0]).textContent=pct(v)}
-}
-
-let last=performance.now(),hudT=0;
-function frame(now){
-  const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(running&&!paused){update(dt);}
-  if(P){render();hudT+=dt;if(hudT>.1){hudT=0;hud()}}
-  else{ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#120f0b';ctx.fillRect(0,0,W,H)}
-  requestAnimationFrame(frame);
-}
-newGame();
-window.__dbg={get P(){return P},get enemies(){return enemies},get G(){return G},update,start(){document.getElementById('go').click()},spawn:spawnEnemy,profile:()=>profile,adapt};
-requestAnimationFrame(frame);
-</script>
-</body>
+    <script type="module" src="./src/main.js"></script>
+  </body>
 </html>
